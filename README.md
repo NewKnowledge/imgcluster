@@ -1,4 +1,27 @@
 # Imgcluster
+
+quick start to cluster an equal number of different images according to their spectral similarity with the SIFT algorithm
+
+```python
+import os
+import sys
+sys.path.append('imgcluster')
+from imgcluster import *
+from utils import *
+
+images_per_group = 5
+
+sample_imgs('imgs', 'images', images_per_group)
+
+img_dir = 'images'
+c = do_cluster(img_dir, images_per_group, algorithm='SIFT',
+               print_metrics=True)
+
+with open('cluster_obj.pkl', 'wb') as output:
+    pickle.dump(c, output, pickle.HIGHEST_PROTOCOL)
+```
+
+# Imgcluster - Forked from llvll
 ### Image clustering using the similarity algorithms: SIFT, SSIM, CW-SSIM, MSE
 
 This project aims to implement the clustering of images by utilizing *Spectral Clustering* and *Affinity Propagation Clustering* together with a number of similarity algorithms, like: 
