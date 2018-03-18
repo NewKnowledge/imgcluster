@@ -26,6 +26,8 @@
 import os
 import datetime
 import cv2
+import pickle
+import imghdr
 import numpy as np
 import ssim.ssimlib as pyssim
 from skimage.measure import structural_similarity as ssim
@@ -36,17 +38,16 @@ from sklearn import metrics
 SIM_IMAGE_SIZE = (640, 480)
 SIFT_RATIO = 0.7
 MSE_NUMERATOR = 1000.0
-IMAGES_PER_CLUSTER = 5
 
 
 def get_image_similarity(img1, img2, algorithm='SIFT'):
     """ Returns the normalized similarity value (from 0.0 to 1.0) for
-    the provided pair of images.
-    The following algorithms are supported:
-    * SIFT: Scale-invariant Feature Transform
-    * SSIM: Structural Similarity Index
-    * CW-SSIM: Complex Wavelet Structural Similarity Index
-    * MSE: Mean Squared Error
+        the provided pair of images.
+        The following algorithms are supported:
+        * SIFT: Scale-invariant Feature Transform
+        * SSIM: Structural Similarity Index
+        * CW-SSIM: Complex Wavelet Structural Similarity Index
+        * MSE: Mean Squared Error
     """
     # Converting to grayscale and resizing
     i1 = cv2.resize(cv2.imread(img1, cv2.IMREAD_GRAYSCALE), SIM_IMAGE_SIZE)
@@ -101,6 +102,7 @@ def build_similarity_matrix(dir_name, algorithm='SIFT'):
     # value per image pair.
 
     images = os.listdir(dir_name)
+
     num_images = len(images)
     sm = np.zeros(shape=(num_images, num_images), dtype=np.float64)
     np.fill_diagonal(sm, 1.0)
@@ -114,8 +116,11 @@ def build_similarity_matrix(dir_name, algorithm='SIFT'):
     k = 0
     for i in range(sm.shape[0]):
         for j in range(sm.shape[1]):
+            num_j = max(range(sm.shape[1]))
             j = j + k
             if i != j and j < sm.shape[1]:
+                print('Comparing image {}/{} with image {}/{}'.format(
+                    i + 1, num_images, j + 1, num_j + 1))
                 sm[i][j] = (
                     get_image_similarity('%s/%s' % (dir_name, images[i]),
                                          '%s/%s' % (dir_name, images[j]),
@@ -167,8 +172,8 @@ def get_cluster_metrics(X, labels, labels_true=None):
     return metrics_dict
 
 
-def do_cluster(dir_name, algorithm='SIFT', print_metrics=True,
-               labels_true=None):
+def do_cluster(dir_name, images_per_cluster, algorithm='SIFT',
+               print_metrics=True, labels_true=None):
     """ Executes two algorithms for similarity-based clustering:
         * Spectral Clustering
         * Affinity Propagation
@@ -177,14 +182,15 @@ def do_cluster(dir_name, algorithm='SIFT', print_metrics=True,
     """
     matrix = build_similarity_matrix(dir_name, algorithm=algorithm)
 
-    sc = SpectralClustering(n_clusters=int(matrix.shape[0]/IMAGES_PER_CLUSTER),
+    sc = SpectralClustering(n_clusters=int(matrix.shape[0]/images_per_cluster),
                             affinity='precomputed').fit(matrix)
     sc_metrics = get_cluster_metrics(matrix, sc.labels_, labels_true)
 
     if print_metrics:
         print("\nPerformance metrics for Spectral Clustering")
         print("Number of clusters: %d" % len(set(sc.labels_)))
-        [print("%s: %.2f" % (k, sc_metrics[k])) for k in list(sc_metrics.keys())]
+        [print("%s: %.2f" % (k, sc_metrics[k]))
+            for k in list(sc_metrics.keys())]
 
     af = AffinityPropagation(affinity='precomputed').fit(matrix)
     af_metrics = get_cluster_metrics(matrix, af.labels_, labels_true)
@@ -192,7 +198,8 @@ def do_cluster(dir_name, algorithm='SIFT', print_metrics=True,
     if print_metrics:
         print("\nPerformance metrics for Affinity Propagation Clustering")
         print("Number of clusters: %d" % len(set(af.labels_)))
-        [print("%s: %.2f" % (k, af_metrics[k])) for k in list(af_metrics.keys())]
+        [print("%s: %.2f" % (k, af_metrics[k])) 
+            for k in list(af_metrics.keys())]
 
     if (sc_metrics['Silhouette coefficient'] >= af_metrics['Silhouette coefficient']) and \
             (sc_metrics['Completeness score'] >= af_metrics['Completeness score'] or
@@ -204,6 +211,26 @@ def do_cluster(dir_name, algorithm='SIFT', print_metrics=True,
         return af.labels_
 
 
-print(os.listdir())
-img_dir = 'images'
-c = do_cluster(img_dir, algorithm='SIFT', print_metrics=True) 
+# img_dir = 'images'
+# c = do_cluster(img_dir, algorithm='SIFT', print_metrics=True)
+
+# with open('cluster_obj.pkl', 'wb') as output:
+#     pickle.dump(c, output, pickle.HIGHEST_PROTOCOL)
+
+
+# from matplotlib import pyplot as plt
+# num_clusters = len(set(c))
+
+# images = os.listdir(img_dir)
+# plt.axis('off')
+
+# for n in range(num_clusters):
+#     print("\n --- Images from cluster #%d ---" % n)
+
+#     for i in np.argwhere(c == n):
+#         if i != -1:
+#             print("Image %s" % images[i])
+#             img = cv2.imread('%s/%s' % (DIR_NAME, images[i]))
+#             plt.axis('off')
+#             plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+#             plt.show()
