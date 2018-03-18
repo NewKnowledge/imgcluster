@@ -3,7 +3,6 @@
 quick start to cluster an equal number of different images according to their spectral similarity with the SIFT algorithm
 
 ```python
-import os
 import sys
 sys.path.append('imgcluster')
 from imgcluster import *
