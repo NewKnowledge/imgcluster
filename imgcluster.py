@@ -38,14 +38,16 @@ SIFT_RATIO = 0.7
 MSE_NUMERATOR = 1000.0
 IMAGES_PER_CLUSTER = 5
 
-""" Returns the normalized similarity value (from 0.0 to 1.0) for the provided pair of images.
+
+def get_image_similarity(img1, img2, algorithm='SIFT'):
+    """ Returns the normalized similarity value (from 0.0 to 1.0) for
+    the provided pair of images.
     The following algorithms are supported:
     * SIFT: Scale-invariant Feature Transform
     * SSIM: Structural Similarity Index
     * CW-SSIM: Complex Wavelet Structural Similarity Index
     * MSE: Mean Squared Error
-"""
-def get_image_similarity(img1, img2, algorithm='SIFT'):
+    """
     # Converting to grayscale and resizing
     i1 = cv2.resize(cv2.imread(img1, cv2.IMREAD_GRAYSCALE), SIM_IMAGE_SIZE)
     i2 = cv2.resize(cv2.imread(img2, cv2.IMREAD_GRAYSCALE), SIM_IMAGE_SIZE)
@@ -77,7 +79,6 @@ def get_image_similarity(img1, img2, algorithm='SIFT'):
     elif algorithm == 'CW-SSIM':
         # FOR EXPERIMENTS ONLY!
         # Very slow algorithm - up to 50x times slower than SIFT or SSIM.
-        # Optimization using CUDA or Cython code should be explored in the future.
         similarity = pyssim.SSIM(img1).cw_ssim_value(img2)
     elif algorithm == 'SSIM':
         # Default SSIM implementation of Scikit-Image
@@ -94,9 +95,11 @@ def get_image_similarity(img1, img2, algorithm='SIFT'):
 
     return similarity
 
-# Fetches all images from the provided directory and calculates the similarity
-# value per image pair.
+
 def build_similarity_matrix(dir_name, algorithm='SIFT'):
+    # Fetches all images from the provided directory and calcs the similarity
+    # value per image pair.
+
     images = os.listdir(dir_name)
     num_images = len(images)
     sm = np.zeros(shape=(num_images, num_images), dtype=np.float64)
@@ -113,9 +116,10 @@ def build_similarity_matrix(dir_name, algorithm='SIFT'):
         for j in range(sm.shape[1]):
             j = j + k
             if i != j and j < sm.shape[1]:
-                sm[i][j] = get_image_similarity('%s/%s' % (dir_name, images[i]),
-                                                '%s/%s' % (dir_name, images[j]),
-                                                algorithm=algorithm)
+                sm[i][j] = (
+                    get_image_similarity('%s/%s' % (dir_name, images[i]),
+                                         '%s/%s' % (dir_name, images[j]),
+                                         algorithm=algorithm))
         k += 1
 
     # Adding the transposed matrix and subtracting the diagonal to obtain
@@ -123,41 +127,54 @@ def build_similarity_matrix(dir_name, algorithm='SIFT'):
     sm = sm + sm.T - np.diag(sm.diagonal())
 
     end_total = datetime.datetime.now()
-    print("Done - total calculation time: %d seconds" % (end_total - start_total).total_seconds())
+    print("Done - total calculation time: %d seconds" % (
+        end_total - start_total).total_seconds())
     return sm
 
-""" Returns a dictionary with the computed performance metrics of the provided cluster.
-    Several functions from sklearn.metrics are used to calculate the following:
-    * Silhouette Coefficient
-      Values near 1.0 indicate that the sample is far away from the neighboring clusters.
-      A value of 0.0 indicates that the sample is on or very close to the decision boundary
-      between two neighboring clusters and negative values indicate that those samples might
-      have been assigned to the wrong cluster.
-    * Completeness Score
-      A clustering result satisfies completeness if all the data points that are members of a
-      given class are elements of the same cluster. Score between 0.0 and 1.0. 1.0 stands for
-      perfectly complete labeling.
-    * Homogeneity Score
-      A clustering result satisfies homogeneity if all of its clusters contain only data points,
-      which are members of a single class. 1.0 stands for perfectly homogeneous labeling.
-"""
+
 def get_cluster_metrics(X, labels, labels_true=None):
+    """ Returns a dictionary with the computed performance metrics of 
+        the provided cluster.
+        Several functions from sklearn.metrics are used to calculate the
+        following:
+        * Silhouette Coefficient
+          Values near 1.0 indicate that the sample is far away from the
+          neighboring clusters.
+          A value of 0.0 indicates that the sample is on or very close to the
+          decision boundary between two neighboring clusters and negative
+          values indicate that those samples might
+          have been assigned to the wrong cluster.
+        * Completeness Score
+          A clustering result satisfies completeness if all the data points
+          that are members of a given class are elements of the same cluster.
+          Score between 0.0 and 1.0. 1.0 stands for perfectly complete
+          labeling.
+        * Homogeneity Score
+          A clustering result satisfies homogeneity if all of its clusters
+          contain only data points which are members of a single class.
+          1.0 stands for perfectly homogeneous labeling.
+    """
+
     metrics_dict = dict()
-    metrics_dict['Silhouette coefficient'] = metrics.silhouette_score(X,
-                                                                      labels,
-                                                                      metric='precomputed')
+    metrics_dict['Silhouette coefficient'] = (
+        metrics.silhouette_score(X, labels, metric='precomputed'))
     if labels_true:
-        metrics_dict['Completeness score'] = metrics.completeness_score(labels_true, labels)
-        metrics_dict['Homogeneity score'] = metrics.homogeneity_score(labels_true, labels)
+        metrics_dict['Completeness score'] = (
+            metrics.completeness_score(labels_true, labels))
+        metrics_dict['Homogeneity score'] = (
+            metrics.homogeneity_score(labels_true, labels))
 
     return metrics_dict
 
-""" Executes two algorithms for similarity-based clustering:
-    * Spectral Clustering
-    * Affinity Propagation
-    ... and selects the best results according to the clustering performance metrics.
-"""
-def do_cluster(dir_name, algorithm='SIFT', print_metrics=True, labels_true=None):
+
+def do_cluster(dir_name, algorithm='SIFT', print_metrics=True,
+               labels_true=None):
+    """ Executes two algorithms for similarity-based clustering:
+        * Spectral Clustering
+        * Affinity Propagation
+        ... and selects the best results according to the clustering
+        performance metrics.
+    """
     matrix = build_similarity_matrix(dir_name, algorithm=algorithm)
 
     sc = SpectralClustering(n_clusters=int(matrix.shape[0]/IMAGES_PER_CLUSTER),
@@ -185,3 +202,8 @@ def do_cluster(dir_name, algorithm='SIFT', print_metrics=True, labels_true=None)
     else:
         print("\nSelected Affinity Propagation for the labeling results")
         return af.labels_
+
+
+print(os.listdir())
+img_dir = 'images'
+c = do_cluster(img_dir, algorithm='SIFT', print_metrics=True) 
