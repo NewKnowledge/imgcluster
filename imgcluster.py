@@ -26,7 +26,6 @@
 import os
 import datetime
 import cv2
-import pickle
 import imghdr
 import numpy as np
 import ssim.ssimlib as pyssim
@@ -138,7 +137,7 @@ def build_similarity_matrix(dir_name, algorithm='SIFT'):
 
 
 def get_cluster_metrics(X, labels, labels_true=None):
-    """ Returns a dictionary with the computed performance metrics of 
+    """ Returns a dictionary with the computed performance metrics of
         the provided cluster.
         Several functions from sklearn.metrics are used to calculate the
         following:
@@ -198,39 +197,14 @@ def do_cluster(dir_name, images_per_cluster, algorithm='SIFT',
     if print_metrics:
         print("\nPerformance metrics for Affinity Propagation Clustering")
         print("Number of clusters: %d" % len(set(af.labels_)))
-        [print("%s: %.2f" % (k, af_metrics[k])) 
+        [print("%s: %.2f" % (k, af_metrics[k]))
             for k in list(af_metrics.keys())]
 
     if (sc_metrics['Silhouette coefficient'] >= af_metrics['Silhouette coefficient']) and \
             (sc_metrics['Completeness score'] >= af_metrics['Completeness score'] or
              sc_metrics['Homogeneity score'] >= af_metrics['Homogeneity score']):
         print("\nSelected Spectral Clustering for the labeling results")
-        return sc.labels_
+        return sc.labels_, matrix
     else:
         print("\nSelected Affinity Propagation for the labeling results")
-        return af.labels_
-
-
-# img_dir = 'images'
-# c = do_cluster(img_dir, algorithm='SIFT', print_metrics=True)
-
-# with open('cluster_obj.pkl', 'wb') as output:
-#     pickle.dump(c, output, pickle.HIGHEST_PROTOCOL)
-
-
-# from matplotlib import pyplot as plt
-# num_clusters = len(set(c))
-
-# images = os.listdir(img_dir)
-# plt.axis('off')
-
-# for n in range(num_clusters):
-#     print("\n --- Images from cluster #%d ---" % n)
-
-#     for i in np.argwhere(c == n):
-#         if i != -1:
-#             print("Image %s" % images[i])
-#             img = cv2.imread('%s/%s' % (DIR_NAME, images[i]))
-#             plt.axis('off')
-#             plt.imshow(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-#             plt.show()
+        return af.labels_, matrix
