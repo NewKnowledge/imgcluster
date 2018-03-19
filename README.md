@@ -1,6 +1,14 @@
 # Imgcluster
 
-quick start to cluster an equal number of different images according to their spectral similarity with the SIFT algorithm
+Quick start guide to cluster images according to their similarity with the SIFT algorithm.
+
+Dependencies are listed below. At the moment, Python 3.5 is needed if an anaconda install is in use (OpenCV 3.1 produces a conflict with conda).
+
+The package expects a seed directory (e.g., `imgs` in the example below) with a substructure such that similar images are located in their own directory.
+
+The target clustering directory (e.g., `images` below) can be populated with a random sample of *n* images from each sub-directory by calling `sample_imgs`. If needed, images can be scraped from google with `google_image_scrape.py`.
+
+For reference, the example below took 953 seconds (6 sub-directories with 10 sample images each).
 
 ```python
 import sys
